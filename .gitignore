@@ -2,4 +2,7 @@ target/
 build/
 TAGS
 .dep
+<<<<<<< HEAD
 doc/
+=======
+>>>>>>> skeleton/lab2
