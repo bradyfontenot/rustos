@@ -1,34 +1,64 @@
 # RustOS
+Diving into the bowels of low-level programming with Rust & Raspberry Pi hoping to learn how things work just a little bit better.
+
+This project is based on a course originally create by Sergio Benitez at Stanford for his CS140e class.  This particular version has been updated and expanded by the staff at Georgia Tech for their own OS course which is modeled after Benitez's.
 
 
-### Lab 1: Bootstrapping Pi
-- [x] 
+### Labs
+<details>
+    <summary>Lab 1: Bootstrapping Pi</summary>
 
-### Lab 2: Shell & Bootloader
-- [] Phase 1: Oxidation  
-- [] Phase 2: Not a Seashell  
-- [] Phase 3: Boot 'em up
+- [x] Phase 0: Preflight Check
+- [x] Phase 1: Baking Pi
+- [x] Phase 2: LED There Be Light
+- [x] Phase 3: Shining C
+- [x] Phase 4: Rusting Away
+</details>
 
-# CS3210 Lab assignments
+<details>
+<summary>Lab 2: Shell & Bootloader</summary>
+
+- [x] Phase 1: Oxidation
+- [ ] Phase 2: Not a Seashell  
+- [ ] Phase 3: Boot 'em up
+</details>
+
+<details>
+<summary>Lab 3: FAT32 File System</summary>
+
+- [ ] Phase 0: Getting Started
+- [ ] Phase 1: Memory Lane 
+- [ ] Phase 2: 32-bit Lipids
+- [ ] Phase 3: Saddle Up
+- [ ] Phase 4: Mo'sh
+</details>
+
+<details>
+<summary>Lab 4: Preemptive Multitasking</summary>
+
+- [ ] Phase 0: Getting Started
+- [ ] Phase 1: ARM and a Leg
+- [ ] Phase 2: It's a Process
+- [ ] Phase 3: Memory Management Unit
+- [ ] Phase 4: Programs In The Disk 
+</details>
+
+<details>
+<summary>Lab 5: Multicore & Networking</summary>
+
+- [ ] Phase 0: Getting Started
+- [ ] Phase 1: Enabling Multicore
+- [ ] Phase 2: TCP Networking
+- [ ] Phase 3: Echo Server
+</details>
+
+&nbsp;
+&nbsp;
+
+# Course Info
 
 This repository contains lab assignments for Georgia Tech CS3210 "Design of Operating Systems".
 The latest course material is available [here](https://tc.gts3.org/cs3210/2020/spring/index.html).
-
-## Who should take CS3210?
-
-- Anyone wants to work on challenges in operating systems
-- Anyone cares about what's going on under the hood
-- Anyone has to build high-performance systems (e.g., Cloud, Trading)
-- Anyone wants to build embedded/IoT firmware (e.g., Robot)
-- Anyone needs to diagnose bugs or security problems
-
-## Why Rust?
-
-Historically, C has been mainly used for OS development because of its portability,
-minimal runtime, direct hardware/memory access, and (decent) usability.
-Rust provides all of these features with addition of memory safety guarantee,
-strong type system, and modern language abstractions
-which help programmers to make less mistakes when writing code.
 
 ## Acknowledgement
 
