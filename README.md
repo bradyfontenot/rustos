@@ -1,3 +1,14 @@
+# RustOS
+
+
+### Lab 1: Bootstrapping Pi
+- [x] 
+
+### Lab 2: Shell & Bootloader
+- [] Phase 1: Oxidation  
+- [] Phase 2: Not a Seashell  
+- [] Phase 3: Boot 'em up
+
 # CS3210 Lab assignments
 
 This repository contains lab assignments for Georgia Tech CS3210 "Design of Operating Systems".
