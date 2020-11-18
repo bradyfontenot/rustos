@@ -3,9 +3,10 @@
 #[cfg(test)]
 mod tests;
 
-use core::iter::IntoIterator;
+
 use core::ops::{Deref, DerefMut};
-use core::slice;
+// use core::slice;
+// use core::iter::IntoIterator;
 
 /// A contiguous array type backed by a slice.
 ///
@@ -116,44 +117,43 @@ impl<'a, T: Clone + 'a> StackVec<'a, T> {
     pub fn pop(&mut self) -> Option<T> {
         if !self.is_empty(){
             self.len -= 1;
-
+            
+            return Some(self.storage[self.len].clone())
         }
         None
     }
 }
 
-impl<'a, T> Deref for StackVec<'a, T> {
+impl<'a, T: 'a> Deref for StackVec<'a, T> {
     type Target = [T];
     fn deref(&self) -> &Self::Target {
-        self.storage
+        self.as_slice()
     }
 }
 
-impl<'a, T> DerefMut for StackVec<'a, T> {
+impl<'a, T: 'a> DerefMut for StackVec<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target{
-        &mut self.storage
+        self.as_mut_slice()
     }
 }
 
 // FIXME: Implement `Deref`, `DerefMut`, and `IntoIterator` for `StackVec`.
 // FIXME: Implement IntoIterator` for `&StackVec`.
+impl<'a, T: 'a> core::iter::IntoIterator for StackVec<'a, T> {
+    type Item = &'a mut T;
+    type IntoIter = core::slice::IterMut<'a, T>;
 
-
-
-impl<'a, T> IntoIterator for StackVec<'a, T>{
-    type Item = &'a T;
-    type IntoIter = slice::Iter<'a, T>;
-    fn into_iter(self) -> Self::IntoIter{
-        self.storage.iter()
-
+    fn into_iter(self) -> Self::IntoIter {
+        self.storage.into_iter()
     }
 }
 
-impl<'a, T> IntoIterator for &'a StackVec<'a, T>{
+// Implement IntoIterator` for `&StackVec`.
+impl<'a, T: 'a> core::iter::IntoIterator for &'a StackVec<'a, T> {
     type Item = &'a T;
-    type IntoIter = slice::Iter<'a, T>;
-    fn into_iter(self) -> Self::IntoIter{
-        self.storage.iter()
+    type IntoIter = core::slice::Iter<'a, T>;
 
+    fn into_iter(self) -> Self::IntoIter {
+        self.as_slice().into_iter()
     }
 }
