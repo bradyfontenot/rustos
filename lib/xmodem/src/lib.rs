@@ -182,7 +182,22 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     /// byte was not `byte`, if the read byte was `CAN` and `byte` is not `CAN`,
     /// or if writing the `CAN` byte failed on byte mismatch.
     fn expect_byte_or_cancel(&mut self, byte: u8, expected: &'static str) -> io::Result<u8> {
-        unimplemented!()
+         let result = match self.read_byte(true) {
+                Ok(incoming) if incoming == byte => Ok(byte),
+                // Ok(CAN)  => {
+                //     self.write_byte(CAN)?;
+                //     ioerr!(ConnectionAborted, expected)
+                // },
+                Err(e) => {
+                    self.write_byte(CAN)?;
+                    Err(e)
+                }
+                _ => {
+                    self.write_byte(CAN)?;
+                    ioerr!(InvalidData, expected)
+                }
+        };
+        result
     }
 
     /// Reads a single byte from the inner I/O stream and compares it to `byte`.
@@ -197,7 +212,15 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     /// of `ConnectionAborted` is returned. Otherwise, the error kind is
     /// `InvalidData`.
     fn expect_byte(&mut self, byte: u8, expected: &'static str) -> io::Result<u8> {
-        unimplemented!()
+        let result = match self.read_byte(false) {
+            Ok(incoming) if incoming == byte => Ok(byte),
+            Ok(CAN) => {
+                ioerr!(ConnectionAborted, expected)
+            },
+            _ => ioerr!(InvalidData, expected),
+        };
+
+        result
     }
 
     /// Reads (downloads) a single packet from the inner stream using the XMODEM
@@ -213,18 +236,70 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     /// point. Also returns an error if the XMODEM protocol indicates an error.
     /// In particular, an `InvalidData` error is returned when:
     ///
-    ///   * The sender's first byte for a packet isn't `EOT` or `SOH`.
-    ///   * The sender doesn't send a second `EOT` after the first.
-    ///   * The received packet numbers don't match the expected values.
+    ///   ** The sender's first byte for a packet isn't `EOT` or `SOH`.
+    ///   ** The sender doesn't send a second `EOT` after the first.
+    ///   ** The received packet numbers don't match the expected values. 
     ///
-    /// An error of kind `Interrupted` is returned if a packet checksum fails.
+    /// ** An error of kind `Interrupted` is returned if a packet checksum fails.
     ///
-    /// An error of kind `ConnectionAborted` is returned if a `CAN` byte is
+    /// ** An error of kind `ConnectionAborted` is returned if a `CAN` byte is
     /// received when not expected.
     ///
-    /// An error of kind `UnexpectedEof` is returned if `buf.len() < 128`.
+    /// ** An error of kind `UnexpectedEof` is returned if `buf.len() < 128`.
     pub fn read_packet(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        unimplemented!()
+        if buf.len() < 128 {
+            self.started = false;
+            return ioerr!(UnexpectedEof, "packet too small")
+            
+        }
+        
+        if !self.started{
+            // send NAK to signal ready to receive
+            self.write_byte(NAK)?;
+            (self.progress)(Progress::Started);
+            self.started = true;
+        }
+
+        // 
+        match self.read_byte(true){
+            Ok(EOT) => {
+                self.write_byte(NAK)?;
+                self.expect_byte(EOT, "Expect EOT")?;
+                self.write_byte(ACK)?;
+                self.started = false;
+                Ok(0)
+            },
+            Ok(SOH) => {
+                // receive packet number
+                self.expect_byte_or_cancel(self.packet, "Packet number did not match")?;
+                // receive 1's complement
+                self.expect_byte_or_cancel(255 - self.packet, "1's complement did not match")?;
+                // read packet
+                for i in 0..buf.len(){
+                    buf[i] = self.read_byte(false)?;
+                }
+
+                // confirm checksum
+                let checksum = get_checksum(buf);
+                if self.read_byte(false)? == checksum {
+                    self.write_byte(ACK)?;
+                    (self.progress)(Progress::Packet(self.packet));
+                    self.packet = self.packet.wrapping_add(1);
+                    Ok(128)
+                } 
+                else {
+                    self.write_byte(NAK)?;
+                    ioerr!(Interrupted, "Checksum failed")
+                }
+            },
+            Err(ref e) if e.kind() == io::ErrorKind::ConnectionAborted => {
+                ioerr!(ConnectionAborted, "CAN")
+            },
+            _ => {
+                // self.write_byte(CAN)?;
+                ioerr!(InvalidData, "First byte should be SOH or EOT")
+            }
+        }
     }
 
     /// Sends (uploads) a single packet to the inner stream using the XMODEM
@@ -244,21 +319,77 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     /// point. Also returns an error if the XMODEM protocol indicates an error.
     /// In particular, an `InvalidData` error is returned when:
     ///
-    ///   * The receiver's first byte isn't a `NAK`.
+    ///   ** The receiver's first byte isn't a `NAK`.
     ///   * The receiver doesn't respond with a `NAK` to the first `EOT`.
     ///   * The receiver doesn't respond with an `ACK` to the second `EOT`.
-    ///   * The receiver responds to a complete packet with something besides
+    ///   ** The receiver responds to a complete packet with something besides
     ///     `ACK` or `NAK`.
     ///
-    /// An error of kind `UnexpectedEof` is returned if `buf.len() < 128 &&
-    /// buf.len() != 0`.
+    ///  ** An error of kind `UnexpectedEof` is returned if `buf.len() < 128 &&
+    ///     buf.len() != 0`.
     ///
     /// An error of kind `ConnectionAborted` is returned if a `CAN` byte is
     /// received when not expected.
     ///
-    /// An error of kind `Interrupted` is returned if a packet checksum fails.
+    /// ** An error of kind `Interrupted` is returned if a packet checksum fails.
     pub fn write_packet(&mut self, buf: &[u8]) -> io::Result<usize> {
-        unimplemented!()
+        
+        if !self.started {
+            (self.progress)(Progress::Waiting);
+            self.expect_byte(NAK, "Expected NAK 02")?;
+            self.started = true;
+            (self.progress)(Progress::Started);
+        }
+
+        // Buffer empty
+        if buf.len() == 0 {
+            // send 1st EOT
+            self.write_byte(EOT)?;
+            // expect NAK
+            self.expect_byte(NAK, "Expected NAK 01")?;
+            // send 2nd EOT
+            self.write_byte(EOT)?;
+            // expect ACK
+            self.expect_byte(ACK, "Expected ACK")?;
+            self.started = false;
+            return Ok(0)
+        } 
+        
+        // Err: packet too small -> UnexpectedEof
+        if buf.len() < 128 {
+            return ioerr!(UnexpectedEof, "EOF")
+        }
+
+        // Send initial SOH byte
+        self.write_byte(SOH)?;
+        
+        // Send packet number
+        self.write_byte(self.packet)?;
+
+        // Send 1s complement of packet number
+        self.write_byte(255 - self.packet)?;
+
+        // write packet to stream
+        for byte in buf {
+            self.write_byte(*byte)?;
+        }
+
+        // send checksum
+        self.write_byte(get_checksum(buf))?;
+
+        // wait for validation of checksum
+        let result = match self.read_byte(false) {
+            Ok(ACK) => {
+                (self.progress)(Progress::Packet(self.packet));
+                self.packet = self.packet.wrapping_add(1);
+                
+                Ok(buf.len())
+            },
+            Ok(_) => ioerr!(Interrupted, "ACK not received. retrying"),
+            _ => ioerr!(InvalidData, "Expected ACK or NAK")
+        };
+
+        result
     }
 
     /// Flush this output stream, ensuring that all intermediately buffered
