@@ -124,6 +124,9 @@ impl<'a, T: Clone + 'a> StackVec<'a, T> {
     }
 }
 
+
+// FIXME: Implement `Deref`, `DerefMut`, and `IntoIterator` for `StackVec`.
+// FIXME: Implement IntoIterator` for `&StackVec`.
 impl<'a, T: 'a> Deref for StackVec<'a, T> {
     type Target = [T];
     fn deref(&self) -> &Self::Target {
@@ -137,8 +140,6 @@ impl<'a, T: 'a> DerefMut for StackVec<'a, T> {
     }
 }
 
-// FIXME: Implement `Deref`, `DerefMut`, and `IntoIterator` for `StackVec`.
-// FIXME: Implement IntoIterator` for `&StackVec`.
 impl<'a, T: 'a> core::iter::IntoIterator for StackVec<'a, T> {
     type Item = &'a mut T;
     type IntoIter = core::slice::IterMut<'a, T>;
