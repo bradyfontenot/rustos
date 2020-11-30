@@ -32,10 +32,9 @@ impl Timer {
     /// Reads the system timer's counter and returns Duration.
     /// `CLO` and `CHI` together can represent the number of elapsed microseconds.
     pub fn read(&self) -> Duration {
-        let time = (
+        let time = 
             self.registers.CLO.read() as u64 |
-            self.registers.CHI.read() << 32 as u64
-        );
+            ((self.registers.CHI.read() as u64) << 32);
 
         Duration::from_micros(time)
     }
