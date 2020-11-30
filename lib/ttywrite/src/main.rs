@@ -49,7 +49,7 @@ struct Opt {
 
 fn main() {
     use std::fs::File;
-    use std::io::{self, BufReader, Write, Read};
+    use std::io::{self, BufReader};
 
     let opt = Opt::from_args();
     let mut port = serial::open(&opt.tty_path).expect("path points to invalid TTY");
@@ -67,29 +67,62 @@ fn main() {
     port.write_settings(&settings).expect("could not write settings");
     port.set_timeout(Duration::from_secs(opt.timeout)).expect("timeout duration invalid?");
     
-    let mut writer: Vec<u8> = vec![];
-    let i = Some(opt.input).unwrap();
-    if i != None {
-        let f = File::open(i.unwrap()).expect("Error reading file.");
-        let mut r = BufReader::new(f);
-        io::copy(&mut r, &mut writer).expect("whoops");
-        }
-    
-    // read from stdin
-    else{
-        // let mut buffer = Vec::new();
-        io::stdin().read(&mut writer).expect("errrrrrr");
-    }
+    // ****************** V2 Start ************************
 
-    if opt.raw == true{
-            let x = port.write(&writer[..]).expect("uuuhhhhh");
-            println!("Raw bytes: {}", x);
-    }
-    else{
-            let xm = Xmodem::transmit_with_progress(&writer[..], port, progress_fn)
-            .expect("errored out bro");
-            println!("Xmodem Protocol: {}", xm);
-    }
+    let mut input: Box<dyn io::Read> = match opt.input{
+        Some(path) => {
+            let buf = File::open(path).expect("Error reading file");
+            Box::new(BufReader::new(buf))
+        },
+        None => {
+            let buf = io::stdin();
+            Box::new(BufReader::new(buf))
+            
+        }
+    };
+
+    let bytes = match opt.raw {
+        true => {
+            io::copy(&mut input, &mut port).expect("Could not copy to port") as usize
+        },
+        false => {
+            Xmodem::transmit_with_progress(input, port, progress_fn).expect("Could not transmit")
+        }
+    };
+
+    println!("Bytes Written: {}", bytes);
+  
+    // *************** V2 End **************************** 
+
+    // *************** V1 Start ****************************
+
+    // let mut writer: Vec<u8> = vec![];
+    // let input = match opt.input {
+    
+    // let i = Some(opt.input).unwrap();
+    // if i != None {
+    //     let f = File::open(i.unwrap()).expect("Error reading file.");
+    //     let mut r = BufReader::new(f);
+    //     io::copy(&mut r, &mut writer).expect("whoops");
+    //     }
+    
+    // // read from stdin
+    // else{
+    //     // let mut buffer = Vec::new();
+    //     io::stdin().read(&mut writer).expect("errrrrrr");
+    // }
+
+    // if opt.raw == true{
+    //         let x = port.write(&writer[..]).expect("uuuhhhhh");
+    //         println!("Raw bytes: {}", x);
+    // }
+    // else{
+    //         let xm = Xmodem::transmit_with_progress(&writer[..], port, progress_fn)
+    //         .expect("errored out bro");
+    //         println!("Xmodem Protocol: {}", xm);
+    // }
+
+    // *************** V1 End ****************************
 }
 
 fn progress_fn(progress: Progress) {
