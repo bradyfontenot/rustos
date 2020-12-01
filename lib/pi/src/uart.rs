@@ -72,6 +72,13 @@ impl MiniUart {
             &mut *(MU_REG_BASE as *mut Registers) 
         };
 
+        // set gpio pins for Tx and Rx
+        let gpio14 = Gpio::new(14);
+        let gpio15 = Gpio::new(15);
+
+        gpio14.into_output();
+        gpio15.into_input();
+
         // set baud rate
         registers.AUX_MU_BAUD_REG.write(270);
 
@@ -100,15 +107,16 @@ impl MiniUart {
     /// Write the byte `byte`. This method blocks until there is space available
     /// in the output FIFO.
     pub fn write_byte(&mut self, byte: u8) {
-        unimplemented!()
+        unimplemented!();
+        // self.write();
     }
 
     /// Returns `true` if there is at least one byte ready to be read. If this
     /// method returns `true`, a subsequent call to `read_byte` is guaranteed to
     /// return immediately. This method does not block.
     pub fn has_byte(&self) -> bool {
-        unimplemented!()
-    }
+        (self.registers.AUX_MU_LSR_REG.read() & 1) == LsrStatus::DataReady as u8
+    } 
 
     /// Blocks until there is a byte ready to read. If a read timeout is set,
     /// this method blocks for at most that amount of time. Otherwise, this
@@ -119,12 +127,21 @@ impl MiniUart {
     /// returns `Ok(())`, a subsequent call to `read_byte` is guaranteed to
     /// return immediately.
     pub fn wait_for_byte(&self) -> Result<(), ()> {
-        unimplemented!()
+        let start_time = timer::current_time();
+        while !self.has_byte()  {
+            if self.timeout.unwrap() >  Duration::from_secs(0) &&
+            (timer::current_time() - start_time) > self.timeout.unwrap()  {
+                return Err(());
+            }
+        } 
+        Ok(())
     }
 
     /// Reads a byte. Blocks indefinitely until a byte is ready to be read.
     pub fn read_byte(&mut self) -> u8 {
-        unimplemented!()
+        unimplemented!();
+        // self.wait_for_byte();
+        // self.read()
     }
 }
 
