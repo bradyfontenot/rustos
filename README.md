@@ -1,7 +1,7 @@
 # RustOS
 Diving into the bowels of low-level programming with Rust & Raspberry Pi hoping to learn how things work just a little bit better.
 
-This project is based on a course originally create by Sergio Benitez at Stanford for his CS140e class.  This particular version has been updated and expanded by the staff at Georgia Tech for their own OS course which is modeled after Benitez's.  
+This project is based on a course originally created by Sergio Benitez at Stanford for his CS140e class.  This particular version has been updated and expanded by the staff at Georgia Tech for their own OS course which is modeled after Benitez's.  
 
 [Benitez's Original CS140e Course](https://cs140e.sergio.bz/)  
 [Georgia Tech's 3210 Version](https://tc.gts3.org/cs3210/2020/spring/index.html)
