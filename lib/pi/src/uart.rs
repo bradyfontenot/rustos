@@ -28,6 +28,27 @@ enum LsrStatus {
 #[allow(non_snake_case)]
 struct Registers {
     // FIXME: Declare the "MU" registers from page 8.
+    AUX_MU_IO_REG:      Volatile<u8>,
+    __r0:               [Reserved<u8>; 3], 
+    AUX_MU_IER_REG:     Volatile<u8>,
+    __r1:               [Reserved<u8>; 3],
+    __r2:               [Reserved<u8>; 3],
+    AUX_MU_IIR_REG:     Volatile<u8>,
+    __r3:               [Reserved<u8>; 3],
+    AUX_MU_LCR_REG:     Volatile<u8>,
+    __r4:               [Reserved<u8>; 3],
+    AUX_MU_MCR_REG:     Volatile<u8>,
+    __r5:               [Reserved<u8>; 3],
+    AUX_MU_LSR_REG:     ReadVolatile<u8>,
+    __r6:               [Reserved<u8>; 3],
+    AUX_MU_MSR_REG:     ReadVolatile<u8>,
+    __r7:               [Reserved<u8>; 3], 
+    AUX_MU_SCRATCH:     Volatile<u8>,
+    __r8:               [Reserved<u8>; 3], 
+    AUX_MU_CNTL_REG:    Volatile<u8>,
+    __r9:               [Reserved<u8>; 3], 
+    AUX_MU_STAT_REG:    ReadVolatile<u32>,
+    AUX_MU_BAUD_REG:    Volatile<u16>,
 }
 
 /// The Raspberry Pi's "mini UART".
@@ -48,16 +69,32 @@ impl MiniUart {
         let registers = unsafe {
             // Enable the mini UART as an auxiliary device.
             (*AUX_ENABLES).or_mask(1);
-            &mut *(MU_REG_BASE as *mut Registers)
+            &mut *(MU_REG_BASE as *mut Registers) 
         };
 
-        // FIXME: Implement remaining mini UART initialization.
-        unimplemented!()
+        // set baud rate
+        registers.AUX_MU_BAUD_REG.write(270);
+
+        // set data size
+        registers.AUX_MU_LCR_REG.write(
+            registers.AUX_MU_LCR_REG.read() | 0b11
+        );
+
+        // enable transmit & receive 
+        registers.AUX_MU_CNTL_REG.write(
+            registers.AUX_MU_CNTL_REG.read() | 0b11
+        );
+
+        MiniUart{
+            registers,
+            timeout: Some(Duration::from_secs(5))
+        }
+
     }
 
     /// Set the read timeout to `t` duration.
     pub fn set_read_timeout(&mut self, t: Duration) {
-        unimplemented!()
+        self.timeout = Some(t);
     }
 
     /// Write the byte `byte`. This method blocks until there is space available
