@@ -14,12 +14,20 @@ pub mod console;
 pub mod mutex;
 pub mod shell;
 
-use console::kprintln;
+// use console::kprintln;
 
 // FIXME: You need to add dependencies here to
 // test your drivers (Phase 2). Add them as needed.
+use pi::uart;
+use pi::gpio;
+use pi::timer;
 
 fn kmain() -> ! {
     // FIXME: Start the shell.
-    unimplemented!()
+    // unimplemented!()
+    let uart = MiniUart::new();
+
+    loop{
+        uart.write(uart.read());
+    }
 }
