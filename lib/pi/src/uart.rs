@@ -73,11 +73,8 @@ impl MiniUart {
         };
 
         // set gpio pins for Tx and Rx
-        let gpio14 = Gpio::new(14);
-        let gpio15 = Gpio::new(15);
-
-        gpio14.into_output();
-        gpio15.into_input();
+        Gpio::new(14).into_alt(Function::Alt5);;
+        Gpio::new(15).into_alt(Function::Alt5);;
 
         // set baud rate
         registers.AUX_MU_BAUD_REG.write(270);
@@ -94,7 +91,7 @@ impl MiniUart {
 
         MiniUart{
             registers,
-            timeout: Some(Duration::from_secs(5))
+            timeout: None
         }
 
     }
@@ -107,8 +104,8 @@ impl MiniUart {
     /// Write the byte `byte`. This method blocks until there is space available
     /// in the output FIFO.
     pub fn write_byte(&mut self, byte: u8) {
-        unimplemented!();
-        // self.write();
+        while (self.registers.AUX_MU_LSR_REG.read() & 1 << 5) != LsrStatus::TxAvailable as u8 {}
+        self.registers.AUX_MU_IO_REG.write(byte);
     }
 
     /// Returns `true` if there is at least one byte ready to be read. If this
@@ -127,26 +124,64 @@ impl MiniUart {
     /// returns `Ok(())`, a subsequent call to `read_byte` is guaranteed to
     /// return immediately.
     pub fn wait_for_byte(&self) -> Result<(), ()> {
-        let start_time = timer::current_time();
-        while !self.has_byte()  {
-            if self.timeout.unwrap() >  Duration::from_secs(0) &&
-            (timer::current_time() - start_time) > self.timeout.unwrap()  {
-                return Err(());
+        
+        let result = match self.timeout {
+            None => {
+                while !self.has_byte(){}
+                Ok(())
+            },
+            Some(timeout) => {
+                if self.has_byte(){
+                    Ok(())
+                } else{
+
+                    let start = timer::current_time();
+                    let end = start + timeout;
+                    while timer::current_time() < end{
+                        if self.has_byte(){
+                            return Ok(())
+                        }
+                    }
+                    Err(())
+
+
+                    // timer::spin_sleep(t);
+                    // if self.has_byte(){
+                    //     Ok(())
+                    // } else{
+                    //     Err(())
+                    // }
+                }
             }
-        } 
-        Ok(())
+        };
+        
+        result
     }
 
     /// Reads a byte. Blocks indefinitely until a byte is ready to be read.
     pub fn read_byte(&mut self) -> u8 {
-        unimplemented!();
-        // self.wait_for_byte();
-        // self.read()
+        while !self.has_byte(){}
+        self.registers.AUX_MU_IO_REG.read()
     }
 }
 
 // FIXME: Implement `fmt::Write` for `MiniUart`. A b'\r' byte should be written
 // before writing any b'\n' byte.
+
+impl fmt::Write for MiniUart {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        for byte in s.bytes(){
+            match byte {
+                b'\n' => {
+                    self.write_byte(b'\r');
+                    self.write_byte(b'\n');
+                },
+                _ => self.write_byte(byte)
+            }
+        }
+        Ok(())
+    }
+}
 
 mod uart_io {
     use super::io;
@@ -160,6 +195,37 @@ mod uart_io {
     // any additional bytes but _should_ read as many bytes as possible. If the
     // read times out, an error of kind `TimedOut` should be returned.
     //
+
+    // read from IO_REG
+    impl io::Read for MiniUart {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result <usize>{
+            match self.wait_for_byte() {
+                Ok(()) => {
+                    for i in 1..buf.len(){
+                        buf[i] = self.read_byte();
+                    }
+                    Ok(buf.len())
+                },
+                Err(()) => Err(io::Error::new(io::ErrorKind::TimedOut, "Timed out"))
+            }
+        }
+    }
+
+
+
     // The `io::Write::write()` method must write all of the requested bytes
     // before returning.
+    impl io::Write for MiniUart{
+        fn write(&mut self, buf: &[u8]) -> io::Result <usize>{
+            for byte in buf{
+                self.write_byte(*byte);
+            }
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()>{
+            Ok(())
+        }
+    }
+
 }
